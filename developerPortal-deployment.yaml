@@ -2,15 +2,15 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: >-
   AWS CloudFormation template that deploys the role for developer portal deployments
 Parameters:
-  MSTRDeveloperPortalRoleArn:
+  DeveloperPortalRoleArn:
     Type: String
     Default: ""
-  MSTRDeveloperPortal:
+  DeveloperPortal:
     Description: Whether or not to deploy developer portal
     Type: String
     Default: 'false'
   S3BucketName:
-    Description: Target S3 bucket where all resources in MSTR source account copied to
+    Description: Target S3 bucket where all resources in source account copied to
     Type: String
   LatestStackVersion:
     Description: (DO NOT Modify) The version for the current stack
@@ -21,10 +21,10 @@ Parameters:
   #   Type: String
   #   Default: 1
 Conditions:
-  CreateDeveloperPortalRole: !Equals [!Ref MSTRDeveloperPortalRoleArn, ""]
-  DeveloperPortalDeployment: !Equals [!Ref MSTRDeveloperPortal, 'true']
+  CreateDeveloperPortalRole: !Equals [!Ref DeveloperPortalRoleArn, ""]
+  DeveloperPortalDeployment: !Equals [!Ref DeveloperPortal, 'true']
 Resources:
-  MSTRDPRole:
+  DPRole:
     Condition: DeveloperPortalDeployment
     Type: AWS::IAM::Role
     Properties:
@@ -53,9 +53,9 @@ Resources:
           #       - !Sub arn:aws:iam::${AWS::AccountId}:root
           #   Action: sts:AssumeRole
       Path: /
-  MSTRDPCognitoPolicy:
+  DPCognitoPolicy:
     Condition: DeveloperPortalDeployment
-    DependsOn: MSTRDPRole
+    DependsOn: DPRole
     Type: AWS::IAM::ManagedPolicy
     Properties:
       PolicyDocument:
@@ -178,12 +178,12 @@ Resources:
               - iam:CreateServiceLinkedRole
               - iam:GetServiceLinkedRoleDeletionStatus
             Resource: "*"
-      ManagedPolicyName: !Sub MSTRDPCognitoPolicy-${AWS::Region}
+      ManagedPolicyName: !Sub DPCognitoPolicy-${AWS::Region}
       Roles:
-        - !Ref MSTRDPRole
-  MSTRDPRolePolicy:
+        - !Ref DPRole
+  DPRolePolicy:
     Condition: DeveloperPortalDeployment
-    DependsOn: MSTRDPRole
+    DependsOn: DPRole
     Type: AWS::IAM::ManagedPolicy
     Properties:
       PolicyDocument:
@@ -330,42 +330,33 @@ Resources:
               - s3:PutObjectAcl
               - s3:PutObjectVersionAcl
             Resource: "*"
-      ManagedPolicyName: !Sub MSTRDPRole-${AWS::Region}
+      ManagedPolicyName: !Sub DPRole-${AWS::Region}
       Roles:
-        - !Ref MSTRDPRole
-  # CreateDeveloperPortalRoleHandler:
-  #   Type: AWS::CloudFormation::WaitConditionHandle
-  #   DependsOn: MSTRDPRole
-  #   Condition: DeveloperPortalDeployment
-  # ExistingDeveloperPortalRoleHandler:
-  #   Type: AWS::CloudFormation::WaitConditionHandle
+        - !Ref DPRole
 
   DeveloperPortalManagementLambda:
     Condition: DeveloperPortalDeployment
     DependsOn:
-      - MSTRDPRolePolicy
-      - MSTRDPRole
+      - DPRolePolicy
+      - DPRole
     Type: AWS::Lambda::Function
     Properties:
       Runtime: python3.8
       Code:
-        #S3Bucket: veroawsdeveloperportalsrcbucket
-        #S3Key:  verolamda/DeveloperPortalManagement.zip
         S3Bucket: !Ref S3BucketName
-        S3Key:  !Sub infrastructure/${LatestStackVersion}/lambdas/layers/DeveloperPortalManagement.zip
+        S3Key:  !Sub ${LatestStackVersion}/lambdas/layers/DeveloperPortalManagement.zip
       Description: lambda for Developer Portal Management
       FunctionName: 'DeveloperPortalManagement'
       Environment:
         Variables:
           LatestStackVersion: !Ref LatestStackVersion
-          #DeveloperPortalSourceBucket: veroawsdeveloperportalsrcbucket
           DeveloperPortalSourceBucket: !Ref S3BucketName
           LAMBDA_S3BucketName: !Ref S3BucketName
           Stackname: 'developerportal'
           DevPortalSiteS3BucketName: 'devportalsource'
           ArtifactsS3BucketName: 'developerportalart'
           AccountRegistrationMode: "open"
-          CognitoDomainNameOrPrefix: 'mstr'
+          CognitoDomainNameOrPrefix: 'publix'
           StaticAssetRebuildMode: ""
           StaticAssetRebuildToken: !Ref LatestStackVersion
           DevPortalCustomersTableName: 'DevPortalCustomers'
@@ -380,31 +371,27 @@ Resources:
       Layers:
         - !Ref SamCliLayer
       MemorySize: 1024
-      Role: !GetAtt MSTRDPRole.Arn
+      Role: !GetAtt DPRole.Arn
       Timeout: 900
   SamCliLayer:
     Condition: DeveloperPortalDeployment
-    #DependsOn: ResourceCreationWaitCondition
     Type: AWS::Lambda::LayerVersion
     Properties:
       CompatibleRuntimes:
         - python3.8
       Content:
-        #S3Bucket: veroawsdeveloperportalsrcbucket
-        #S3Key: Layer/awssamcli-lambda-layer.zip
         S3Bucket: !Ref S3BucketName
-        S3Key: !Sub infrastructure/${LatestStackVersion}/lambdas/layers/mstr-lambda-layer.zip
+        S3Key: !Sub ${LatestStackVersion}/lambdas/layers/lambda-layer.zip
       Description: Sam Cli Layer
       LayerName: SamCliLayer
       LicenseInfo: MIT
   DeveloperPortalManagementinvoke:
     Condition: DeveloperPortalDeployment
     DependsOn:
-      #- ResourceCreationWaitCondition
       - SamCliLayer
-      - MSTRDPRole
-      - MSTRDPRolePolicy
-      - MSTRDPCognitoPolicy
+      - DPRole
+      - DPRolePolicy
+      - DPCognitoPolicy
       - DeveloperPortalManagementLambda
     Type: AWS::CloudFormation::CustomResource
     Version: "1.0"
