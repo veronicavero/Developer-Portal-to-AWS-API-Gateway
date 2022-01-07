@@ -1,0 +1,414 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation template that deploys the role for developer portal deployments
+Parameters:
+  MSTRDeveloperPortalRoleArn:
+    Type: String
+    Default: ""
+  MSTRDeveloperPortal:
+    Description: Whether or not to deploy developer portal
+    Type: String
+    Default: 'false'
+  S3BucketName:
+    Description: Target S3 bucket where all resources in MSTR source account copied to
+    Type: String
+  LatestStackVersion:
+    Description: (DO NOT Modify) The version for the current stack
+    Type: String
+    Default: 6
+  # Footprint:
+  #   Description: A random string for triggering resources update
+  #   Type: String
+  #   Default: 1
+Conditions:
+  CreateDeveloperPortalRole: !Equals [!Ref MSTRDeveloperPortalRoleArn, ""]
+  DeveloperPortalDeployment: !Equals [!Ref MSTRDeveloperPortal, 'true']
+Resources:
+  MSTRDPRole:
+    Condition: DeveloperPortalDeployment
+    Type: AWS::IAM::Role
+    Properties:
+      Description: The role for Developer Portal Deployment
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - edgelambda.amazonaws.com
+                - cognito-idp.amazonaws.com
+                - apigateway.amazonaws.com
+                # - edgelambda.amazonaws.com
+                # - s3.amazonaws.com
+                # - events.amazonaws.com
+                - iam.amazonaws.com
+                - dynamodb.amazonaws.com
+              # Federated: cognito-identity.amazonaws.com
+            Action:
+              - sts:AssumeRole
+          # - Effect: Allow
+          #   Principal:
+          #     AWS:
+          #       - !Sub arn:aws:iam::${AWS::AccountId}:root
+          #   Action: sts:AssumeRole
+      Path: /
+  MSTRDPCognitoPolicy:
+    Condition: DeveloperPortalDeployment
+    DependsOn: MSTRDPRole
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:DescribeLogGroups
+              - logs:DescribeLogStreams
+              - logs:GetLogEvents
+              - logs:FilterLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - cognito-identity:CreateIdentityPool
+              - cognito-identity:DeleteIdentities
+              - cognito-identity:DeleteIdentityPool
+              - cognito-identity:DescribeIdentity
+              - cognito-identity:DescribeIdentityPool
+              - cognito-identity:GetIdentityPoolRoles
+              - cognito-identity:ListIdentities
+              - cognito-identity:ListIdentityPools
+              - cognito-identity:SetIdentityPoolRoles
+              - cognito-identity:UpdateIdentityPool
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - cognito-idp:AdminAddUserToGroup
+              - cognito-idp:AdminCreateUser
+              - cognito-idp:AdminDeleteUser
+              - cognito-idp:AdminGetUser
+              - cognito-idp:AdminListGroupsForUser
+              - cognito-idp:ConfirmSignUp
+              - cognito-idp:CreateGroup
+              - cognito-idp:CreateUserPool
+              - cognito-idp:CreateUserPoolClient
+              - cognito-idp:CreateUserPoolDomain
+              - cognito-idp:DeleteGroup
+              - cognito-idp:DeleteIdentityProvider
+              - cognito-idp:DeleteUser
+              - cognito-idp:DeleteUserPool
+              - cognito-idp:DeleteUserPoolClient
+              - cognito-idp:DeleteUserPoolDomain
+              - cognito-idp:DescribeIdentityProvider
+              - cognito-idp:DescribeUserPool
+              - cognito-idp:DescribeUserPoolClient
+              - cognito-idp:DescribeUserPoolDomain
+              - cognito-idp:GetGroup
+              - cognito-idp:GetUser
+              - cognito-idp:ListGroups
+              - cognito-idp:ListUserPoolClients
+              - cognito-idp:ListUserPools
+              - cognito-idp:ListUsers
+              - cognito-idp:ListUsersInGroup
+              - cognito-idp:SignUp
+              - cognito-idp:UpdateGroup
+              - cognito-idp:UpdateUserPool
+              - cognito-idp:UpdateUserPoolClient
+              - cognito-idp:UpdateUserPoolDomain
+            Resource: "*"
+          - Effect: Allow
+            Action: 'cognito-idp:CreateUserPoolDomain'
+            Resource: 'arn:aws:cognito-idp:*:*:userpool/*'
+          - Effect: Allow
+            Action: 'cognito-idp:DeleteUserPoolDomain'
+            Resource: 'arn:aws:cognito-idp:*:*:userpool/*'
+          - Effect: Allow
+            Action: 'cognito-idp:DescribeUserPoolDomain'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - iam:AddUserToGroup
+              - iam:AttachGroupPolicy
+              - iam:AttachRolePolicy
+              - iam:CreateRole
+              - iam:CreateUser
+              - iam:CreateServiceLinkedRole
+              - iam:DeleteGroup
+              - iam:DeletePolicyVersion
+              - iam:DeleteRole
+              - iam:DeleteRolePermissionsBoundary
+              - iam:DeleteRolePolicy
+              - iam:DeleteUser
+              - iam:DeleteUserPolicy
+              - iam:DetachGroupPolicy
+              - iam:DetachRolePolicy
+              - iam:DetachUserPolicy
+              - iam:GetGroup
+              - iam:GetGroupPolicy
+              - iam:GetPolicy
+              - iam:GetPolicyVersion
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - iam:GetUser
+              - iam:GetUserPolicy
+              - iam:ListAttachedGroupPolicies
+              - iam:ListAttachedRolePolicies
+              - iam:ListAttachedUserPolicies
+              - iam:ListGroupPolicies
+              - iam:ListGroups
+              - iam:ListGroupsForUser
+              - iam:ListPolicies
+              - iam:ListPolicyVersions
+              - iam:ListRolePolicies
+              - iam:ListRoles
+              - iam:ListUserPolicies
+              - iam:ListUsers
+              - iam:PassRole
+              - iam:PutGroupPolicy
+              - iam:PutRolePolicy
+              - iam:PutUserPolicy
+              - iam:UpdateAssumeRolePolicy
+              - iam:UpdateGroup
+              - iam:UpdateRole
+              - iam:UpdateUser
+              - iam:DeleteServiceLinkedRole
+              - iam:CreateServiceLinkedRole
+              - iam:GetServiceLinkedRoleDeletionStatus
+            Resource: "*"
+      ManagedPolicyName: !Sub MSTRDPCognitoPolicy-${AWS::Region}
+      Roles:
+        - !Ref MSTRDPRole
+  MSTRDPRolePolicy:
+    Condition: DeveloperPortalDeployment
+    DependsOn: MSTRDPRole
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:DescribeLogGroups
+              - logs:DescribeLogStreams
+              - logs:GetLogEvents
+              - logs:FilterLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - sns:Publish
+              - sns:DeleteTopic
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - apigateway:DELETE
+              - apigateway:GET
+              - apigateway:PATCH
+              - apigateway:POST
+              - apigateway:PUT
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - cloudformation:CreateChangeSet
+              - cloudformation:CreateStack
+              - cloudformation:DeleteChangeSet
+              - cloudformation:DeleteStack
+              - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeStackResource
+              - cloudformation:DescribeStacks
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:ListChangeSets
+              - cloudformation:ListExports
+              - cloudformation:ListImports
+              - cloudformation:ListStackInstances
+              - cloudformation:ListStackResources
+              - cloudformation:ListStackSetOperationResults
+              - cloudformation:ListStackSetOperations
+              - cloudformation:ListStackSets
+              - cloudformation:ListStacks
+              - cloudformation:ListTypeRegistrations
+              - cloudformation:ListTypeVersions
+              - cloudformation:ListTypes
+              - cloudformation:UpdateStack
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - cloudfront:CreateCachePolicy
+              - cloudfront:CreateCloudFrontOriginAccessIdentity
+              - cloudfront:CreateDistribution
+              - cloudfront:CreateDistributionWithTags
+              - cloudfront:CreateFunction
+              - cloudfront:CreateStreamingDistributionWithTags
+              - cloudfront:DeleteCloudFrontOriginAccessIdentity
+              - cloudfront:DeleteDistribution
+              - cloudfront:GetCachePolicy
+              - cloudfront:GetCloudFrontOriginAccessIdentity
+              - cloudfront:GetDistribution
+              - cloudfront:ListCloudFrontOriginAccessIdentities
+              - cloudfront:ListDistributions
+              - cloudfront:ListDistributionsByOriginRequestPolicyId
+              - cloudfront:ListDistributionsByLambdaFunction
+              - cloudfront:TagResource
+              - cloudfront:UntagResource
+              - cloudfront:UpdateCachePolicy
+              - cloudfront:UpdateCloudFrontOriginAccessIdentity
+              - cloudfront:UpdateDistribution
+              - cloudformation:DescribeStackEvents
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - dynamodb:CreateTable
+              - dynamodb:DeleteItem
+              - dynamodb:DeleteTable
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:ListBackups
+              - dynamodb:ListStreams
+              - dynamodb:ListTables
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:RestoreTableFromBackup
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+              - dynamodb:UpdateTable
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - lambda:AddLayerVersionPermission
+              - lambda:AddPermission
+              - lambda:CreateAlias
+              - lambda:CreateFunction
+              - lambda:DeleteAlias
+              - lambda:DeleteFunction
+              - lambda:DeleteLayerVersion
+              - lambda:DisableReplication
+              - lambda:EnableReplication*
+              - lambda:GetFunction
+              - lambda:GetLayerVersion
+              - lambda:GetLayerVersionPolicy
+              - lambda:InvokeFunction
+              - lambda:ListAliases
+              - lambda:ListFunctions
+              - lambda:ListLayerVersions
+              - lambda:ListLayers
+              - lambda:ListVersionsByFunction
+              - lambda:PublishLayerVersion
+              - lambda:PublishVersion
+              - lambda:RemoveLayerVersionPermission
+              - lambda:RemovePermission
+              - lambda:UpdateAlias
+              - lambda:UpdateFunctionCode
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:DeleteBucket
+              - s3:DeleteBucketPolicy
+              - s3:DeleteObject
+              - s3:DeleteObjectVersion
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
+              - s3:GetBucketPolicy
+              - s3:GetBucketPublicAccessBlock
+              - s3:GetObject
+              - s3:GetObjectAcl
+              - s3:GetObjectVersion
+              - s3:GetObjectVersionAcl
+              - s3:ListAllMyBuckets
+              - s3:ListBucket
+              - s3:PutBucketAcl
+              - s3:PutBucketNotification
+              - s3:PutBucketPolicy
+              - s3:PutBucketPublicAccessBlock
+              - s3:PutBucketVersioning
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:PutObjectVersionAcl
+            Resource: "*"
+      ManagedPolicyName: !Sub MSTRDPRole-${AWS::Region}
+      Roles:
+        - !Ref MSTRDPRole
+  # CreateDeveloperPortalRoleHandler:
+  #   Type: AWS::CloudFormation::WaitConditionHandle
+  #   DependsOn: MSTRDPRole
+  #   Condition: DeveloperPortalDeployment
+  # ExistingDeveloperPortalRoleHandler:
+  #   Type: AWS::CloudFormation::WaitConditionHandle
+
+  DeveloperPortalManagementLambda:
+    Condition: DeveloperPortalDeployment
+    DependsOn:
+      - MSTRDPRolePolicy
+      - MSTRDPRole
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.8
+      Code:
+        #S3Bucket: veroawsdeveloperportalsrcbucket
+        #S3Key:  verolamda/DeveloperPortalManagement.zip
+        S3Bucket: !Ref S3BucketName
+        S3Key:  !Sub infrastructure/${LatestStackVersion}/lambdas/layers/DeveloperPortalManagement.zip
+      Description: lambda for Developer Portal Management
+      FunctionName: 'DeveloperPortalManagement'
+      Environment:
+        Variables:
+          LatestStackVersion: !Ref LatestStackVersion
+          #DeveloperPortalSourceBucket: veroawsdeveloperportalsrcbucket
+          DeveloperPortalSourceBucket: !Ref S3BucketName
+          LAMBDA_S3BucketName: !Ref S3BucketName
+          Stackname: 'developerportal'
+          DevPortalSiteS3BucketName: 'devportalsource'
+          ArtifactsS3BucketName: 'developerportalart'
+          AccountRegistrationMode: "open"
+          CognitoDomainNameOrPrefix: 'mstr'
+          StaticAssetRebuildMode: ""
+          StaticAssetRebuildToken: !Ref LatestStackVersion
+          DevPortalCustomersTableName: 'DevPortalCustomers'
+          DevPortalPreLoginAccountsTableName: 'DevPortalPreLoginAccount'
+          DevPortalAdminEmail: ""
+          DevPortalFeedbackTableName: 'DevPortalFeedback'
+          CognitoIdentityPoolName: 'DevPortalIdentityPool'
+          CustomDomainName: ""
+          CustomDomainNameAcmCertArn: ""
+          UseRoute53Nameservers: "false"
+      Handler: DeveloperPortalManagement.lambda_handler
+      Layers:
+        - !Ref SamCliLayer
+      MemorySize: 1024
+      Role: !GetAtt MSTRDPRole.Arn
+      Timeout: 900
+  SamCliLayer:
+    Condition: DeveloperPortalDeployment
+    #DependsOn: ResourceCreationWaitCondition
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.8
+      Content:
+        #S3Bucket: veroawsdeveloperportalsrcbucket
+        #S3Key: Layer/awssamcli-lambda-layer.zip
+        S3Bucket: !Ref S3BucketName
+        S3Key: !Sub infrastructure/${LatestStackVersion}/lambdas/layers/mstr-lambda-layer.zip
+      Description: Sam Cli Layer
+      LayerName: SamCliLayer
+      LicenseInfo: MIT
+  DeveloperPortalManagementinvoke:
+    Condition: DeveloperPortalDeployment
+    DependsOn:
+      #- ResourceCreationWaitCondition
+      - SamCliLayer
+      - MSTRDPRole
+      - MSTRDPRolePolicy
+      - MSTRDPCognitoPolicy
+      - DeveloperPortalManagementLambda
+    Type: AWS::CloudFormation::CustomResource
+    Version: "1.0"
+    Properties:
+      ServiceToken: !GetAtt DeveloperPortalManagementLambda.Arn
+      LatestStackVersion: !Ref LatestStackVersion
+      Footprint: !Ref LatestStackVersion
