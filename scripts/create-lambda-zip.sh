@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-# modify the value whenever push a new version
-LastVersion=6
+LastVersion=1
 
 [ ! -d $LastVersion ] && mkdir $LastVersion
 mkdir $LastVersion/lambda
